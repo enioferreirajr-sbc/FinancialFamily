@@ -1,0 +1,175 @@
+
+DOCUMENTO TÉCNICO – LAYOUT GLOBAL E SISTEMA DE TEMA (APPSHELL)
+1.	Visão Geral do AppShell
+
+1.1. Definição
+O AppShell é a estrutura visual e funcional persistente da aplicação web. Ele define onde os elementos aparecem, como eles se comportam visualmente e quais contratos estruturais as páginas devem respeitar para garantir consistência, escalabilidade e previsibilidade ao longo do tempo.
+O AppShell atua como a camada base da experiência do usuário, permanecendo montado durante toda a navegação entre rotas. Ele não possui conhecimento sobre regras de negócio, domínio das features ou decisões contextuais de páginas.
+1.2. Responsabilidades do AppShell
+São responsabilidades do AppShell:
+– Permanecer carregado durante a navegação entre rotas
+– Definir a estrutura base do layout composta por Header, Sidebar, Área de Conteúdo e Footer
+– Exibir feedback visual de carregamento durante trocas de rota (Loading Bar)
+– Centralizar o sistema de tema e tokens de design (incluindo Z-Index e camadas)
+– Garantir responsividade e comportamento mobile-first
+– Garantir acessibilidade base da aplicação
+– Expor slots estruturais bem definidos para composição pelas páginas
+1.3. Responsabilidades que NÃO pertencem ao AppShell
+Não são responsabilidades do AppShell:
+– Definir ou renderizar ações de página (botões de salvar, filtros, etc.)
+– Definir a hierarquia dos breadcrumbs (apenas renderiza o slot)
+– Executar lógica de busca de negócio
+– Conhecer features, domínios ou regras de validação
+⸻
+2.	Princípios Arquiteturais do Layout Global
+
+2.1. Princípios Fundamentais
+O layout global deve seguir os seguintes princípios:
+– Layout não é regra de negócio
+– Layout não é conteúdo de página
+– Layout fornece estrutura, nunca decisões
+– O escopo global define onde algo aparece, enquanto as páginas definem o que aparece
+– Tokens semânticos devem ser utilizados antes de qualquer estilo direto
+– Mobile-first deve ser tratado como regra e não exceção
+– A arquitetura deve permitir extensão sem modificação do núcleo do layout
+2.2. Objetivo Arquitetural
+Esses princípios garantem que o AppShell permaneça estável ao longo do tempo, isolando a estrutura visual das constantes mudanças de regras de negócio.
+⸻
+3.	Estrutura Geral do Layout
+
+3.1. Composição Estrutural
+A estrutura geral do layout é composta por:
+– Um Header global persistente no topo da aplicação
+– Uma Sidebar posicionada à esquerda, responsável apenas pela navegação estrutural
+– Uma Barra de Progresso (Loading Bar) fixa no topo extremo, visível apenas durante transições
+– Uma Área de Conteúdo Principal, responsável por renderizar as telas de negócio
+– Um Page Header Slot dentro da área de conteúdo, destinado a identificar o contexto da tela
+– Um Footer opcional
+3.2. Page Header Slot
+O Page Header Slot é um espaço estrutural oferecido pelo layout. Ele é destinado exclusivamente à renderização de:
+ * Breadcrumbs contextuais
+ * Título Principal da Página (H1)
+Esse slot cria uma consistência visual no topo de todas as páginas. Ações de página (botões, filtros, abas) NÃO pertencem a este slot e devem ser renderizadas no corpo da página, logo abaixo deste cabeçalho.
+⸻
+4.	Contrato Estrutural do AppShell
+
+4.1. Slots Expostos
+O AppShell expõe os seguintes slots estruturais para injeção de conteúdo:
+– HeaderLeftSlot
+– HeaderRightSlot
+– PageHeaderSlot (Título + Breadcrumbs)
+– MainContentSlot
+4.2. Regras dos Slots
+Nenhum slot é obrigatório. A ausência de conteúdo em qualquer slot não deve quebrar o layout. O AppShell não interpreta, transforma ou valida o conteúdo desses slots.
+⸻
+5.	Componentes do AppShell
+
+5.1. Sidebar – Navegação Estrutural
+5.1.1. Função
+A Sidebar tem como função fornecer navegação estrutural entre módulos do sistema.
+5.1.2. Requisitos Funcionais
+A Sidebar deve:
+– Permanecer fixa à esquerda no desktop
+– Funcionar como drawer (sobreposto) no mobile
+– Permitir colapso para modo ícones (apenas desktop)
+– Persistir o estado de colapso (aberto/fechado) no armazenamento local (localStorage) para evitar layout shift no recarregamento
+– Destacar visualmente o item ativo
+– Exibir tooltips nos itens quando colapsada
+5.1.3. Contrato de Navegação
+A Sidebar consome uma estrutura declarativa externa (configuração de navegação), garantindo desacoplamento entre layout e features.
+5.1.4. Implementação Técnica
+– Layout: Tailwind CSS
+– Altura: 100dvh (Dynamic Viewport Height) para suporte correto a mobile
+– Controle de estado: SidebarContext com persistência
+– Acessibilidade: Radix UI (para o drawer mobile)
+⸻
+5.2. Header – Camada Global Persistente
+5.2.1. Função
+O Header é responsável por exibir elementos globais e controles de sistema.
+5.2.2. Elementos
+O Header deve conter:
+– Gatilho de Menu Mobile (visível apenas em telas menores)
+– Campo de busca global (visual)
+– Área do usuário com avatar e menu
+5.2.3. Busca Global
+A busca é um componente visual controlado que emite eventos. A lógica de busca reside em um SearchProvider externo.
+5.2.4. Implementação Técnica
+– Posição: Sticky ou Fixed
+– Z-Index: Deve ser inferior a Modais e Drawers, mas superior ao conteúdo
+⸻
+5.3. Área de Conteúdo Principal
+5.3.1. Função
+Renderiza as telas de negócio (rotas filhas) dentro de um container seguro.
+5.3.2. Requisitos Funcionais
+– Scroll independente do Header e da Sidebar
+– Altura definida via 100dvh (Dynamic Viewport Height) para evitar cortes em navegadores móveis (Safari iOS/Chrome Android)
+– Padding consistente em todas as rotas
+– Implementação de Scroll Restoration manual para garantir que, ao voltar para uma listagem, a posição do scroll seja mantida
+⸻
+5.4. Page Header – Contexto
+5.4.1. Função
+Renderiza o título (H1) e o caminho (breadcrumbs) fornecidos pela rota ativa.
+5.4.2. Escopo
+O layout apenas reserva o espaço. O conteúdo (texto do título e array de breadcrumbs) é fornecido pela página ou pelo roteador.
+⸻
+5.5. Feedback de Navegação (Loading Bar)
+5.5.1. Função
+Fornecer feedback visual imediato quando o usuário inicia uma navegação entre rotas, prevenindo a sensação de falta de resposta.
+5.5.2. Comportamento
+– Aparece no topo extremo da tela (acima do Header)
+– Inicia animação ao evento de início de troca de rota
+– Finaliza animação ao término do carregamento da rota
+– Oculta automaticamente após a conclusão
+5.5.3. Implementação
+– Biblioteca sugerida: nProgress ou similar
+– Cor: Token de cor primária do sistema
+⸻
+5.6. Footer
+5.6.1. Função
+Opcional. Destinado a informações institucionais. Nunca deve interferir na área de scroll principal ou cobrir conteúdo vital.
+⸻
+6.	Sistema de Tema e Design Tokens
+
+6.1. Estratégia de Tema
+Gerenciado por um ThemeProvider global. Responsável por alternância de modo (Light/Dark) e injeção de variáveis CSS.
+6.2. Tokens Semânticos e Camadas
+Além de cores, tipografia e espaçamento, o sistema deve definir tokens de Z-Index (Camadas) para evitar conflitos de sobreposição:
+– z-base (0): Conteúdo
+– z-sticky (10): Header fixo
+– z-drawer (40): Sidebar mobile
+– z-modal (50): Diálogos e Modais
+– z-toast (100): Notificações e Loading Bar
+6.3. Integração
+Todos os componentes devem consumir tokens semânticos via Tailwind (theme.extend), nunca valores hardcoded (ex: use bg-surface-primary, não bg-white).
+⸻
+7.	Animações e Microinterações
+
+7.1. Princípios
+Animações devem ser curtas (150-250ms) e respeitar a preferência de redução de movimento do usuário.
+7.2. Uso Permitido no AppShell
+– Loading Bar de navegação
+– Colapso da Sidebar
+– Entrada do Drawer Mobile
+– Dropdowns
+⸻
+8.	Acessibilidade Global
+
+8.1. Estratégia
+O layout é o guardião da acessibilidade estrutural.
+8.2. Regras Obrigatórias
+– Gerenciamento de foco ao abrir/fechar Drawer e Modais (Trap Focus)
+– Navegação completa por teclado na Sidebar e Header
+– Contraste adequado garantido pelos tokens de cor
+– Uso de marcos ARIA (nav, main, header, aside) corretos
+⸻
+9.	Organização do Projeto
+
+A estrutura de pastas deve separar claramente:
+– /components/layout (AppShell, Sidebar, Header)
+– /components/ui (Primitivos visuais)
+– /app ou /pages (Rotas de negócio)
+– /providers (Theme, Auth, Query)
+⸻
+10.	Conclusão
+
+Este documento serve como a fonte da verdade para a implementação do layout. Ele garante que a aplicação seja responsiva (dvh), consistente (tokens e slots), utilizável (loading indicators e scroll restoration) e tecnicamente desacoplada das regras 
