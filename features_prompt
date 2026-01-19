@@ -1,1 +1,270 @@
 
+# Documento de Requisitos Funcionais – App de Gestão Financeira Familiar (Versão Final)
+
+## 1. Visão Geral
+
+Este documento consolida os **requisitos funcionais** de um aplicativo de **gestão financeira familiar**, contemplando o controle de contas, transações, cartões de crédito, faturas, parcelamentos, recorrências, importação de dados e funcionalidades de apoio à tomada de decisão financeira.
+
+O sistema tem como objetivo permitir que **dois usuários fixos** acompanhem, planejem e analisem suas finanças pessoais e familiares de forma organizada, coerente e consistente com a realidade financeira brasileira.
+
+---
+
+## 2. Controle de Acesso e Autenticação (RF-00)
+
+O sistema deve garantir que o acesso aos dados seja protegido e identificar qual usuário está operando o sistema.
+
+### 2.1 Método de acesso
+
+* O login deve ser simplificado via **PIN numérico de 4 dígitos**.
+* Cada um dos dois usuários fixos terá seu próprio PIN.
+
+### 2.2 Sessão
+
+* O sistema deve manter a sessão ativa para facilitar o uso recorrente.
+* O login bem-sucedido deve identificar o usuário ativo para fins de auditoria (campos `created_by` e `updated_by`).
+
+---
+
+## 3. Tela Inicial / Dashboard (RF-19)
+
+Ao efetuar o login, o sistema deve direcionar o usuário para um **Dashboard Resumo**, focado na visão imediata da saúde financeira.
+
+### 3.1 Indicadores principais
+
+O dashboard deve exibir:
+
+1. **Saldo Atual Consolidado:** Somatório do saldo atual de todas as contas do tipo "Conta Corrente" e "Conta de Investimento".
+2. **Total de Faturas em Aberto:** Somatório dos valores parciais das faturas abertas de todos os cartões de crédito.
+
+---
+
+## 4. Gestão de Contas (RF-01)
+
+O sistema deve permitir o **cadastro, edição, exclusão e visualização de contas financeiras**.
+
+### 4.1 Tipos de conta
+
+* Conta corrente
+* Conta de investimento
+* Cartão de crédito (Possui CRUD específico, ver item 4.5)
+
+### 4.2 Atributos gerais da conta (Corrente e Investimento)
+
+* Nome da conta
+* Tipo da conta
+* Instituição financeira
+* Saldo inicial
+* Data de início
+* Status (ativa / inativa)
+
+### 4.3 Regras de Fluxo entre Contas
+
+* **Conta Corrente:** Permite receitas, despesas e transferências.
+* **Conta de Investimento:**
+* Não deve permitir lançamentos diretos de "Despesa" ou "Receita" (exceto rendimentos ou taxas administrativas).
+* Aportes e Resgates devem ser operacionalizados exclusivamente via **Transferência** (origem: Conta Corrente ↔ destino: Investimento).
+
+
+
+### 4.4 Ajuste de Saldo / Reconciliação (RF-20)
+
+* O usuário pode editar diretamente o "Saldo Atual" de uma conta.
+* O sistema calcula a diferença e cria automaticamente uma transação de "Ajuste de Saldo" (Despesa ou Receita) para equalizar o valor.
+
+### 4.5 CRUD Específico de Cartão de Crédito (RF-08)
+
+Devido à complexidade das faturas, o cartão de crédito possui regras estritas de cadastro e exclusão.
+
+#### 4.5.1 Atributos
+
+* Nome do Cartão, Bandeira/Instituição, Limite Total, Dia de Fechamento, Dia de Vencimento.
+
+#### 4.5.2 Regras de Alteração
+
+* Alterar o **Dia de Fechamento** só deve impactar a geração de faturas **futuras** (que ainda não possuem transações vinculadas). Faturas já abertas ou fechadas devem manter a data de corte original.
+* Alterar o **Limite** atualiza o cálculo de saldo disponível imediatamente.
+
+#### 4.5.3 Regras de Exclusão
+
+* Um cartão de crédito **não pode ser excluído** se:
+* Possuir faturas com status "Aberta", "Fechada" ou "Paga".
+* Possuir transações parceladas pendentes vinculadas a ele.
+
+
+* Para inativar o uso sem perder o histórico, deve-se utilizar o status **Inativo**.
+
+---
+
+## 5. Gestão de Categorias e Subcategorias (RF-02)
+
+O sistema deve permitir o **CRUD de categorias e subcategorias**.
+
+### 5.1 Atributos
+
+* Nome
+* Tipo (Despesa / Receita)
+* **Flag: "Considerar para Transferência"** (Sim / Não)
+
+### 5.2 Regras
+
+* **Flag de Transferência:** Categorias com esta flag marcada (ex: "Investimento", "Resgate", "Transferência entre Contas") serão as únicas disponíveis para seleção quando o usuário criar uma transação do tipo "Transferência".
+* O sistema deve impedir o uso de categorias de despesa em receitas e vice-versa.
+
+---
+
+## 6. Gestão de Tags (RF-03)
+
+O sistema deve permitir o **cadastro, edição, exclusão e listagem de tags** para classificação transversal.
+
+---
+
+## 7. Gestão de Transações (RF-04)
+
+O sistema deve permitir o **CRUD de transações financeiras**.
+
+### 7.1 Tipos de transação
+
+* Despesa
+* Receita
+* Transferência
+
+### 7.2 Conceito de Agrupamento (UUID)
+
+Para transações que fazem parte de um conjunto (parcelamentos ou recorrências), o sistema deve gerar e armazenar um **UUID de Agrupamento** (Identificador Único Universal).
+
+* Esse ID vincula todas as parcelas ou recorrências ao registro original.
+* Permite operações em lote (editar todas, excluir todas).
+
+### 7.3 Regras de Transferências (Vínculo Duplo)
+
+* Transferências geram dois registros: **Saída (Origem)** e **Entrada (Destino)**.
+* Ambos os registros devem compartilhar um ID de vínculo.
+* A exclusão de uma ponta exige a exclusão da outra (para evitar furos no saldo).
+
+---
+
+## 8. Status das Transações (RF-05)
+
+* **Confirmada**: Validada pelo usuário (lançamentos manuais nascem aqui).
+* **Pendente**: Importadas e aguardando revisão.
+* A alteração de Pendente para Confirmada ocorre após a categorização.
+
+---
+
+## 9. Importação de Transações (RF-06)
+
+### 9.1 Validação de Duplicidade
+
+* O sistema deve ler o arquivo Excel e comparar **Data** e **Valor** com transações existentes.
+* Registros coincidentes não são importados automaticamente.
+* Ao final, o sistema exibe os duplicados e o usuário decide: "Importar mesmo assim" ou "Descartar".
+
+### 9.2 Tratamento de Lote
+
+* Transações importadas nascem como **Pendente**.
+* Categorização em lote para parcelas importadas: O usuário define a categoria na primeira parcela e o sistema replica para as demais (se confirmado).
+
+---
+
+## 10. Tela de Transações Pendentes (RF-07)
+
+Tela específica para listar, categorizar e confirmar transações importadas ou lançadas futuramente que atingiram a data de efetivação.
+
+---
+
+## 11. Faturas de Cartão de Crédito (RF-09)
+
+O sistema gerencia faturas mensais com base na data de fechamento.
+
+### 11.1 Estrutura
+
+* Mês/Ano de competência.
+* Data de Início e Fim (baseado no dia de fechamento).
+* Status: **Aberta**, **Fechada**, **Paga**.
+
+### 11.2 Fechamento e Reabertura (RF-11)
+
+* **Fechamento:** Ação manual que "congela" a fatura.
+* **Reabertura:** Permite reverter o fechamento (status volta para Aberta) para corrigir lançamentos, desde que a fatura não esteja marcada como **Paga**.
+
+---
+
+## 12. Parcelamento de Despesas (RF-10)
+
+### 12.1 Criação
+
+* Usuário informa: Valor Total, Parcelas, Data.
+* Sistema gera N transações.
+* Todas as transações recebem o mesmo **UUID de Agrupamento**.
+
+### 12.2 Edição e Exclusão em Lote
+
+* Ao tentar editar ou excluir uma parcela, o sistema detecta o UUID e pergunta:
+1. Aplicar apenas a este registro?
+2. Aplicar a este e aos futuros?
+3. Aplicar a **todos** do parcelamento?
+
+
+
+---
+
+## 13. Gestão de Pagamento de Cartão (RF-12)
+
+* O pagamento de fatura deve ser **Total**.
+* Só permitido para faturas **Fechadas**.
+* O cancelamento do pagamento estorna a transferência e reabre a fatura (volta para Fechada).
+
+---
+
+## 14. Transações Recorrentes (RF-14)
+
+### 14.1 Lógica
+
+* Cadastro de receitas ou despesas que se repetem.
+* O sistema gera os lançamentos futuros.
+* Todos os lançamentos gerados compartilham o mesmo **UUID de Agrupamento** da recorrência pai.
+
+### 14.2 Gestão
+
+* O uso do UUID permite que o usuário altere a categoria ou o valor de toda a série de recorrências de uma única vez.
+
+---
+
+## 15. Relatório Mensal (RF-15)
+
+* Relatório simples de Entradas vs Saídas.
+* Baseado na data da transação e status **confirmada**.
+* Ignora Transferências (pois são neutras no fluxo de caixa).
+
+---
+
+## 16. Usabilidade e Qualidade de Vida (RF-21)
+
+### 16.1 Busca Global
+
+* Campo de pesquisa para localizar transações antigas por: Descrição, Valor, Categoria, Tag ou Observação.
+
+---
+
+## 17. Exclusão de Registros (RF-16)
+
+### 17.1 Integridade Referencial
+
+* Não é permitido excluir Contas ou Categorias que possuam transações vinculadas.
+
+### 17.2 Exclusão de Conjuntos (UUID)
+
+* Ao excluir uma transação que possui um **UUID de Agrupamento** (seja parcelamento ou recorrência), o sistema deve oferecer a opção de excluir **toda a série** vinculada aquele UUID, garantindo que não restem "restos" de um parcelamento no sistema.
+
+### 17.3 Exclusão de Transferências
+
+* A exclusão de uma ponta da transferência (ex: saída da conta corrente) deve gatilhar a exclusão (ou solicitação de exclusão) da ponta oposta (entrada no investimento).
+
+---
+
+## 18. Auditoria (RF-18)
+
+Todas as tabelas devem conter:
+
+* `created_at`, `updated_at`
+* `created_by`, `updated_by` (rastreando qual dos dois usuários realizou a ação).
