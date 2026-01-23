@@ -1,6 +1,3 @@
-Aqui está o prompt completo e refinado para o **Agent Programador Frontend**, isolado conforme solicitado.
-
----
 
 ### Prompt de Sistema: Agent Programador Frontend (React)
 
